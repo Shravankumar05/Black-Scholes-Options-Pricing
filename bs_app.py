@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from bs_functions import black_scholes_call, black_scholes_puts, implied_volatility, delta_call, delta_put, gamma, theta_put, theta_call, vega, phi, pdf
 from db_utils import create_table, insert_calculation, insert_output
 
-st.set_page_config(layout="wide")
-st.title("Black–Scholes Options Pricer")
+st.set_page_config(page_title="Black-Scholes-Pricer", page_icon="📈", layout="wide")
+st.title("Black–Scholes-Options Pricer")
 
 with st.sidebar:
     st.header("Model Inputs")
