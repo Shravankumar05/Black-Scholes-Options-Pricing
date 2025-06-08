@@ -1,4 +1,4 @@
-from bs_pricer import black_scholes_call, black_scholes_puts
+from bs_functions import black_scholes_call, black_scholes_puts
 
 if __name__ == "__main__":
     print("Enter current stock price S:")
