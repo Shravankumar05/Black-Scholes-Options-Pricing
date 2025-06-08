@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-import matplotlib
+import matplotlib.pyplot as plt
 import os
 import yfinance as yf
 
@@ -154,7 +154,7 @@ with col1:
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("Call Option Price")
-    fig1, ax1 = matplotlib.pyplt.subplots()
+    fig1, ax1 = plt.subplots()
     im1 = ax1.imshow(call_matrix, origin="lower",
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn_r")
@@ -164,7 +164,7 @@ with col1:
 
 with col2:
     st.subheader("Put Option Price")
-    fig2, ax2 = matplotlib.pyplt.subplots()
+    fig2, ax2 = plt.subplots()
     im2 = ax2.imshow(put_matrix, origin="lower",
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn_r")
@@ -191,7 +191,7 @@ col3, col4 = st.columns(2)
 
 with col3:
     st.subheader("Call P&L")
-    fig3, ax3 = matplotlib.pyplt.subplots()
+    fig3, ax3 = plt.subplots()
     im3 = ax3.imshow(call_pnl_matrix, origin="lower",
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn",
@@ -202,7 +202,7 @@ with col3:
 
 with col4:
     st.subheader("Put P&L")
-    fig4, ax4 = matplotlib.pyplt.subplots()
+    fig4, ax4 = plt.subplots()
     im4 = ax4.imshow(put_pnl_matrix, origin="lower",
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn",
@@ -222,7 +222,7 @@ colA, colB = st.columns(2)
 
 with colA:
     st.subheader(f"Call Break-Even Curve (σ = {sigma_mid:.3f})")
-    fig_call, ax_call = matplotlib.pyplt.subplots()
+    fig_call, ax_call = plt.subplots()
     ax_call.plot(S_vals, call_pnl_slice, label="Call P&L")
     ax_call.axhline(0, color="k", linestyle="--", label="Breakeven")
     ax_call.set_xlabel("Spot price S")
@@ -232,7 +232,7 @@ with colA:
 
 with colB:
     st.subheader(f"Put Break-Even Curve (σ = {sigma_mid:.3f})")
-    fig_put, ax_put = matplotlib.pyplt.subplots()
+    fig_put, ax_put = plt.subplots()
     ax_put.plot(S_vals, put_pnl_slice, label="Put P&L")
     ax_put.axhline(0, color="k", linestyle="--", label="Breakeven")
     ax_put.set_xlabel("Spot price S")
