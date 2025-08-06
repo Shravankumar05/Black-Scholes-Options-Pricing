@@ -57,3 +57,15 @@ def insert_output(calc_id: int, sigma_shock: float, spot_shock: float, option_pr
     conn.commit()
     conn.close()
 
+def insert_outputs_bulk(calc_id: int, data_tuples: list, db_path="data.db"):
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    bulk_data = [(calc_id, sigma, spot, price, int(is_call)) for sigma, spot, price, is_call in data_tuples]
+    c.executemany("""
+      INSERT INTO Outputs
+        (calc_id, sigma_shock, spot_shock, option_price, is_call)
+      VALUES (?, ?, ?, ?, ?)
+    """, bulk_data)
+    
+    conn.commit()
+    conn.close()

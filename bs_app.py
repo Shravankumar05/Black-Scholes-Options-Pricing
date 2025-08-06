@@ -5,8 +5,8 @@ import os
 import yfinance as yf
 import matplotlib.pyplot as plt
 
-from bs_functions import black_scholes_call, black_scholes_puts, implied_volatility, delta_call, delta_put, gamma, theta_put, theta_call, vega, phi, pdf
-from db_utils import create_table, insert_calculation, insert_output
+from bs_functions import black_scholes_call, black_scholes_puts, implied_volatility, delta_call, delta_put, gamma, theta_put, theta_call, vega, phi, pdf, black_scholes_vectorized, black_scholes_multithreaded, black_scholes_optimized, black_scholes_jit, phi_vectorized, pdf_vectorized, NUMBA_AVAILABLE
+from db_utils import create_table, insert_calculation, insert_output, insert_outputs_bulk
 
 st.set_page_config(page_title="Black-Scholes-Pricer", page_icon="📈", layout="wide")
 st.title("Black–Scholes-Options Pricer")
@@ -56,7 +56,49 @@ with st.sidebar:
     S_max     = st.number_input("Max spot (Sₘₐₓ)",    min_value=0.0, value=150.0, step=1.0)
     sigma_min = st.number_input("Min vol (σₘᵢₙ)",     min_value=0.01,value=0.1,   step=0.01)
     sigma_max = st.number_input("Max vol (σₘₐₓ)",     min_value=0.01,value=0.5,   step=0.01)
-
+    st.divider()
+    st.header("Grid Resolution")
+    N = st.slider(
+        "Grid size (N×N points)",
+        min_value=50,
+        max_value=1000,
+        value=300,
+        step=25,
+        help="Higher values = smoother heatmaps but slower computation"
+    )
+    
+    total_points = N * N
+    if total_points < 10000:
+        perf_color = "🟢"
+        perf_text = "Fast computation (~0.01s)"
+    elif total_points < 50000:
+        perf_color = "🟡"
+        perf_text = "Medium computation (~0.05s)"
+    elif total_points < 100000:
+        perf_color = "🟠"
+        perf_text = "Slower computation (~0.1s)"
+    else:
+        perf_color = "🔴"
+        perf_text = "Slow computation (~0.2s+)"
+    
+    st.caption(f"{perf_color} **{total_points:,} total calculations** - {perf_text}")
+    
+    with st.expander("ℹ️ How The Grid Size Affects Performance"):
+        st.markdown("""
+        **Grid Size Impact:**
+        - **N = 100**: 10,000 calculations - Very fast, good for testing
+        - **N = 200**: 40,000 calculations - Fast, good balance for most use cases  
+        - **N = 300**: 90,000 calculations - Default, smooth heatmaps
+        - **N = 400**: 160,000 calculations - High resolution, slower
+        - **N = 500**: 250,000 calculations - Maximum detail, slowest
+        
+        **What happens internally:**
+        - Creates an N×N grid of (spot price, volatility) combinations
+        - Calculates Black-Scholes price for each combination
+        - Higher N = smoother gradients but exponentially more calculations
+        - Multi-threading automatically kicks in for N > 224 (50k+ points)
+        """)
+    
     st.divider()
     st.header("Purchase Prices")
     call_price = black_scholes_call(S, K, T, r, sigma)
@@ -100,25 +142,11 @@ with st.sidebar:
     else:
         st.warning("No database found. Click ‘Generate & Save’ first.")
 
-N = 300
 S_grid     = np.linspace(S_min,    S_max,    num=N)
 sigma_grid = np.linspace(sigma_min, sigma_max, num=N)
-
 S_mat, sigma_mat = np.meshgrid(S_grid, sigma_grid)
-d1 = (np.log(S_mat / K) + (r + 0.5 * sigma_mat**2) * T) / (sigma_mat * np.sqrt(T))
-d2 = d1 - sigma_mat * np.sqrt(T)
-
-vec_phi = np.vectorize(phi)
-vec_pdf = np.vectorize(pdf)
-
-Phi_d1 = vec_phi(d1)
-Phi_d2 = vec_phi(d2)
-Phi_m_d1 = vec_phi(-d1)
-Phi_m_d2 = vec_phi(-d2)
-pdf_d1 = vec_pdf(d1)
-
-call_matrix = S_mat * Phi_d1 - K * np.exp(-r * T) * Phi_d2
-put_matrix  = K * np.exp(-r * T) * Phi_m_d2 - S_mat * Phi_m_d1
+call_matrix = black_scholes_optimized(S_mat, K, T, r, sigma_mat, 'call')
+put_matrix = black_scholes_optimized(S_mat, K, T, r, sigma_mat, 'put')
 call_pnl_matrix = call_matrix - call_buy_price
 put_pnl_matrix  = put_matrix  - put_buy_price
 
@@ -137,16 +165,33 @@ if save:
     }
     calc_id = insert_calculation(params)
 
-    for i, vol in enumerate(sigma_grid):
-        for j, spot in enumerate(S_grid):
-            insert_output(calc_id, float(vol), float(spot),
-                          float(call_pnl_matrix[i, j]), True)
-            insert_output(calc_id, float(vol), float(spot),
-                          float(put_pnl_matrix[i, j]),  False)
-    st.success(f"Saved calc_id={calc_id} with {N*N*2} rows.")
+    sigma_flat = sigma_mat.flatten()
+    spot_flat = S_mat.flatten()
+    call_pnl_flat = call_pnl_matrix.flatten()
+    put_pnl_flat = put_pnl_matrix.flatten()
+    n_points = len(sigma_flat)
+    sigma_combined = np.concatenate([sigma_flat, sigma_flat])
+    spot_combined = np.concatenate([spot_flat, spot_flat])
+    pnl_combined = np.concatenate([call_pnl_flat, put_pnl_flat])
+    is_call_combined = np.concatenate([np.ones(n_points, dtype=bool), np.zeros(n_points, dtype=bool)])
+    bulk_data = list(zip(sigma_combined.astype(float), spot_combined.astype(float), pnl_combined.astype(float), is_call_combined))
+    insert_outputs_bulk(calc_id, bulk_data)
+    st.success(f"Saved calc_id={calc_id} with {len(bulk_data)} rows using vectorized bulk insert.")
 
 st.header("1️⃣ Options-Price Heatmaps")
-st.info("Enter your model parameters in the sidebar to observe how the call and put value varies with spot price and volatility.")
+
+# Performance indicator
+if NUMBA_AVAILABLE:
+    perf_method = "🚀 JIT-compiled (Numba)"
+    perf_color = "success"
+elif N * N >= 50000:
+    perf_method = "⚡ Multi-threaded (2 cores)"
+    perf_color = "info"
+else:
+    perf_method = "🔢 Vectorized (NumPy)"
+    perf_color = "warning"
+
+st.caption("Enter your model parameters in the sidebar to observe how the call and put value varies with spot price and volatility.")
 col0, col1 = st.columns(2)
 with col0:
     st.metric(label="Call Option Price", value=f"{call_price:.4f}", border= True)
