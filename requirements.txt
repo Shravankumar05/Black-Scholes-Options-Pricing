@@ -4,5 +4,3 @@ matplotlib
 pandas
 yfinance
 numba
-concurrent.futures
-functools
