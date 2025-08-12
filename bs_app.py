@@ -7,8 +7,16 @@ import matplotlib.pyplot as plt
 
 from bs_functions import black_scholes_call, black_scholes_puts, implied_volatility, delta_call, delta_put, gamma, theta_put, theta_call, vega, phi, pdf, black_scholes_vectorized, black_scholes_multithreaded, black_scholes_optimized, black_scholes_jit, phi_vectorized, pdf_vectorized, NUMBA_AVAILABLE
 from db_utils import create_table, insert_calculation, insert_output, insert_outputs_bulk
+from portfolio_risk import render_portfolio_risk_page
 
-st.set_page_config(page_title="Black-Scholes-Pricer", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Black-Scholes Options Analysis Dashboard", page_icon="📈", layout="wide")
+
+page = st.sidebar.selectbox("Select Analysis Type", ["Individual Black-Scholes", "Portfolio Risk Analysis"], index=0)
+
+if page == "Portfolio Risk Analysis":
+    render_portfolio_risk_page()
+    st.stop()
+
 st.title("Black–Scholes-Options Pricer")
 
 with st.sidebar:
