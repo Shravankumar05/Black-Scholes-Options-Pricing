@@ -816,6 +816,154 @@ class EnhancedPortfolioAllocationEngine(AdvancedPortfolioAllocationEngine):
             
         return self.equal_weight_allocation(assets)
     
+    def optimize_portfolio_mean_variance(self, returns_data, risk_tolerance='moderate'):
+        """Modern mean-variance optimization with improved constraints"""
+        try:
+            expected_returns = returns_data.mean() * 252
+            cov_matrix = returns_data.cov() * 252
+            n_assets = len(returns_data.columns)
+            
+            risk_params = self.risk_tolerance_profiles.get(risk_tolerance, self.risk_tolerance_profiles['moderate'])
+            target_return = risk_params['target_return']
+            max_volatility = risk_params['max_volatility']
+            
+            from scipy.optimize import minimize
+            
+            def portfolio_volatility(weights, cov_matrix):
+                return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+            
+            def portfolio_return(weights, expected_returns):
+                return np.dot(weights, expected_returns)
+            
+            def objective(weights):
+                return portfolio_volatility(weights, cov_matrix)
+            
+            constraints = [
+                {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},
+                {'type': 'ineq', 'fun': lambda x: portfolio_return(x, expected_returns) - target_return * 0.5},
+                {'type': 'ineq', 'fun': lambda x: max_volatility * 1.5 - portfolio_volatility(x, cov_matrix)}
+            ]
+            
+            bounds = tuple((0.02, 0.5) for _ in range(n_assets))
+            
+            best_result = None
+            best_vol = float('inf')
+            
+            for seed in [42, 123, 456]:
+                np.random.seed(seed)
+                x0 = np.random.dirichlet(np.ones(n_assets))
+                
+                try:
+                    result = minimize(objective, x0, method='SLSQP', bounds=bounds, 
+                                    constraints=constraints, options={'maxiter': 1000})
+                    
+                    if result.success and result.fun < best_vol:
+                        best_result = result
+                        best_vol = result.fun
+                except:
+                    continue
+            
+            if best_result and best_result.success:
+                return best_result.x
+            else:
+                return self.optimize_minimum_variance(returns_data)
+                
+        except Exception as e:
+            print(f"Mean-variance optimization failed: {e}")
+            return np.ones(len(returns_data.columns)) / len(returns_data.columns)
+    
+    def optimize_risk_parity(self, returns_data):
+        """Modern risk parity optimization"""
+        try:
+            cov_matrix = self.robust_covariance_estimation(returns_data).values * 252
+            n_assets = len(returns_data.columns)
+            
+            def risk_parity_objective(weights, cov_matrix):
+                weights = np.abs(weights)
+                weights = weights / weights.sum() if weights.sum() > 0 else weights
+                
+                portfolio_vol = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                if portfolio_vol == 0:
+                    return 1e6
+                
+                marginal_contrib = np.dot(cov_matrix, weights) / portfolio_vol
+                contrib = weights * marginal_contrib
+                target_contrib = portfolio_vol / n_assets
+                
+                return np.sum((contrib - target_contrib) ** 2)
+            
+            constraints = [{'type': 'eq', 'fun': lambda x: np.sum(np.abs(x)) - 1}]
+            bounds = tuple((0.01, 0.4) for _ in range(n_assets))
+            
+            best_result = None
+            best_objective = float('inf')
+            
+            for seed in [42, 123, 456]:
+                np.random.seed(seed)
+                x0 = np.random.dirichlet(np.ones(n_assets))
+                
+                try:
+                    result = minimize(risk_parity_objective, x0, args=(cov_matrix,),
+                                    method='SLSQP', bounds=bounds, constraints=constraints,
+                                    options={'maxiter': 1000})
+                    
+                    if result.success and result.fun < best_objective:
+                        best_result = result
+                        best_objective = result.fun
+                except:
+                    continue
+            
+            if best_result and best_result.success:
+                weights = np.abs(best_result.x)
+                return weights / weights.sum()
+            else:
+                volatilities = np.sqrt(np.diag(cov_matrix))
+                inv_vol_weights = (1 / volatilities) / (1 / volatilities).sum()
+                return inv_vol_weights
+                
+        except Exception as e:
+            print(f"Risk parity optimization failed: {e}")
+            return np.ones(len(returns_data.columns)) / len(returns_data.columns)
+    
+    def optimize_minimum_variance(self, returns_data):
+        """Enhanced minimum variance optimization"""
+        try:
+            cov_matrix = self.robust_covariance_estimation(returns_data).values * 252
+            n_assets = len(returns_data.columns)
+            
+            try:
+                inv_cov = np.linalg.pinv(cov_matrix)
+                ones = np.ones((n_assets, 1))
+                
+                weights = inv_cov @ ones
+                weights = weights.flatten() / weights.sum()
+                weights = np.clip(weights, 0.01, 0.5)
+                weights = weights / weights.sum()
+                
+                return weights
+            except:
+                def portfolio_variance(weights):
+                    weights = np.abs(weights)
+                    weights = weights / weights.sum() if weights.sum() > 0 else weights
+                    return np.dot(weights.T, np.dot(cov_matrix, weights))
+                
+                constraints = [{'type': 'eq', 'fun': lambda x: np.sum(np.abs(x)) - 1}]
+                bounds = tuple((0.01, 0.5) for _ in range(n_assets))
+                x0 = np.ones(n_assets) / n_assets
+                
+                result = minimize(portfolio_variance, x0, method='SLSQP',
+                                bounds=bounds, constraints=constraints,
+                                options={'maxiter': 1000})
+                
+                if result.success:
+                    weights = np.abs(result.x)
+                    return weights / weights.sum()
+                
+        except Exception as e:
+            print(f"Minimum variance optimization failed: {e}")
+        
+        return np.ones(len(returns_data.columns)) / len(returns_data.columns)
+    
     def enhanced_volatility_target_allocation(self, returns_data, assets, target_vol=0.15):
         """Enhanced volatility targeting with leverage control"""
         robust_cov = self.robust_covariance_estimation(returns_data)

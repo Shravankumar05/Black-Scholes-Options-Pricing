@@ -881,7 +881,8 @@ def render_portfolio_risk_page():
                 
                 ax.set_title('Asset Correlation Matrix')
                 plt.tight_layout()
-                st.pyplot(fig)
+                st.pyplot(fig, clear_figure=True)
+                plt.close(fig)
             
             with col2:
                 st.write("**Correlation Insights:**")
@@ -1056,7 +1057,8 @@ def render_portfolio_risk_page():
                         f'${value:,.0f}', ha='center', va='bottom', fontsize=9)
             
             plt.tight_layout()
-            st.pyplot(fig)
+            st.pyplot(fig, clear_figure=True)
+            plt.close(fig)
             
             # Statistical Analysis
             st.subheader("Statistical Analysis")
@@ -1345,4 +1347,5 @@ def render_portfolio_risk_page():
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.pie(quantities, labels=symbols, autopct='%1.1f%%', startangle=90)
         ax.set_title('Portfolio Composition by Quantity')
-        st.pyplot(fig)
+        st.pyplot(fig, clear_figure=True)
+        plt.close(fig)

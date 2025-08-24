@@ -565,7 +565,8 @@ with col1:
     fig1.colorbar(im1, ax=ax1, label="Price")
     ax1.set_xlabel("Spot Price (S)")
     ax1.set_ylabel("Volatility (σ)")
-    st.pyplot(fig1)
+    st.pyplot(fig1, clear_figure=True)
+    plt.close(fig1)
 
 with col2:
     st.subheader("Put Option Price")
@@ -576,7 +577,8 @@ with col2:
     fig2.colorbar(im2, ax=ax2, label="Price")
     ax2.set_xlabel("Spot Price (S)")
     ax2.set_ylabel("Volatility (σ)")
-    st.pyplot(fig2)
+    st.pyplot(fig2, clear_figure=True)
+    plt.close(fig2)
 
 st.header("P&L Heatmaps")
 st.markdown("""
@@ -611,7 +613,8 @@ with col3:
     fig3.colorbar(im3, ax=ax3, label="P&L")
     ax3.set_xlabel("Spot Price (S)")
     ax3.set_ylabel("Volatility (σ)")
-    st.pyplot(fig3)
+    st.pyplot(fig3, clear_figure=True)
+    plt.close(fig3)
 
 with col4:
     st.subheader("Put P&L")
@@ -623,7 +626,8 @@ with col4:
     fig4.colorbar(im4, ax=ax4, label="P&L")
     ax4.set_xlabel("Spot Price (S)")
     ax4.set_ylabel("Volatility (σ)")
-    st.pyplot(fig4)
+    st.pyplot(fig4, clear_figure=True)
+    plt.close(fig4)
 
 st.header("Break-Even Curves")
 st.markdown("""
@@ -649,7 +653,8 @@ with colA:
     ax_call.set_ylabel("P&L")
     ax_call.legend()
     ax_call.grid(True, alpha=0.3)
-    st.pyplot(fig_call)
+    st.pyplot(fig_call, clear_figure=True)
+    plt.close(fig_call)
 
 with colB:
     st.subheader(f"Put Break-Even Curve (σ = {sigma_mid:.3f})")
@@ -660,7 +665,8 @@ with colB:
     ax_put.set_ylabel("P&L")
     ax_put.legend()
     ax_put.grid(True, alpha=0.3)
-    st.pyplot(fig_put)
+    st.pyplot(fig_put, clear_figure=True)
+    plt.close(fig_put)
 
 
 st.header("Greeks")
