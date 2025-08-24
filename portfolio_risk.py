@@ -6,7 +6,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from bs_functions import (black_scholes_call, black_scholes_puts, delta_call, delta_put, gamma, theta_call, theta_put, vega)
 from portfolio_utils import (fetch_historical_data, calculate_returns, historical_var, parametric_var, monte_carlo_var, calculate_cvar, stress_test_scenarios, apply_stress_scenario, calculate_portfolio_beta, calculate_maximum_drawdown, calculate_sharpe_ratio, create_correlation_heatmap, analyze_monte_carlo_results)
-import pandas as pd
+from portfolio_allocation import portfolio_allocator
 
 def _is_crypto_symbol_simple(symbol):
     crypto_indicators = ['/USDT', '/BUSD', '/BTC', '/ETH', '/BNB']
@@ -412,45 +412,37 @@ def calculate_correlation_matrix(symbols, period="1y"):
     return np.eye(n)
 
 def render_portfolio_risk_page():
-    st.title("📊 Portfolio Risk Analysis")
+    st.title("Portfolio Risk Analysis")
     st.markdown("Analyze risk metrics for your multi-instrument portfolio")
     
-    # Check for crypto support with detailed diagnostics
     try:
         import ccxt
-        # Test basic functionality
         exchange = ccxt.binance()
-        crypto_status = f"✅ Crypto support enabled (CCXT v{ccxt.__version__})"
+        crypto_status = f"Crypto support enabled (CCXT v{ccxt.__version__})"
         crypto_color = "success"
-        
-        # Test connection (optional)
         with st.expander("🔧 Crypto Connection Test"):
             if st.button("Test Binance Connection"):
                 try:
                     markets = exchange.load_markets()
-                    st.success(f"✅ Connected to Binance! Found {len(markets)} markets")
+                    st.success(f"Connected to Binance! Found {len(markets)} markets")
                     st.write("Sample markets:", list(markets.keys())[:10])
                 except Exception as e:
-                    st.error(f"❌ Connection test failed: {e}")
+                    st.error(f"Connection test failed: {e}")
                     
     except ImportError as e:
-        crypto_status = f"⚠️ CCXT not found. Install with: `pip install ccxt` (Error: {e})"
+        crypto_status = f"CCXT not found. Install with: `pip install ccxt` (Error: {e})"
         crypto_color = "warning"
     except Exception as e:
-        crypto_status = f"⚠️ CCXT error: {e}"
+        crypto_status = f"CCXT error: {e}"
         crypto_color = "warning"
     
     st.info(f"{crypto_status}")
     
-    # Initialize session state for portfolio
     if 'portfolio_positions' not in st.session_state:
         st.session_state.portfolio_positions = []
     
-    # Sidebar for portfolio construction
     with st.sidebar:
         st.header("Portfolio Construction")
-        
-        # Add new position form
         with st.expander("➕ Add New Position", expanded=True):
             instrument_type = st.selectbox(
                 "Instrument Type",
@@ -459,7 +451,6 @@ def render_portfolio_risk_page():
             )
             
             if instrument_type == "Cryptocurrency":
-                # Crypto symbol input with suggestions
                 symbol = st.selectbox(
                     "Cryptocurrency Symbol",
                     options=["BTC/USDT", "ETH/USDT", "BNB/USDT", "ADA/USDT", "SOL/USDT", 
@@ -474,7 +465,6 @@ def render_portfolio_risk_page():
                 symbol = st.text_input("Symbol (e.g., AAPL for stocks)", key="new_symbol")
             quantity = st.number_input("Quantity", value=100, step=1, key="new_quantity")
             
-            # Additional fields for options (not applicable to crypto)
             if "Option" in instrument_type and instrument_type != "Cryptocurrency":
                 col1, col2 = st.columns(2)
                 with col1:
@@ -489,11 +479,9 @@ def render_portfolio_risk_page():
                 with col3:
                     risk_free_rate = st.number_input("Risk-free Rate", value=0.05, step=0.01, key="new_rate")
                 with col4:
-                    # Auto-fetch volatility if symbol is provided
                     auto_vol = 0.2  # Default
                     if symbol and symbol.strip():
                         try:
-                            # Fetch historical data to calculate implied volatility
                             ticker_data = yf.download(symbol.strip().upper(), period="1y", progress=False, auto_adjust=True)
                             if not ticker_data.empty and 'Close' in ticker_data.columns:
                                 close_prices = ticker_data['Close']
@@ -502,7 +490,6 @@ def render_portfolio_risk_page():
                                     if len(returns) > 0:
                                         vol_value = returns.std() * np.sqrt(252)  # Annualized volatility
                                         
-                                        # Handle different pandas return types
                                         if hasattr(vol_value, 'iloc'):
                                             auto_vol = float(vol_value.iloc[0])
                                         elif hasattr(vol_value, 'item'):
@@ -510,7 +497,6 @@ def render_portfolio_risk_page():
                                         else:
                                             auto_vol = float(vol_value)
                                         
-                                        # Sanity check - volatility should be between 5% and 200%
                                         if 0.05 <= auto_vol <= 2.0:
                                             st.info(f"📊 Auto-fetched volatility for {symbol}: {auto_vol:.1%}")
                                         else:
@@ -921,15 +907,14 @@ def render_portfolio_risk_page():
                     else:
                         st.success("✅ Low correlation - Good diversification")
         else:
-            st.warning("⚠️ Unable to fetch correlation data")
+            st.warning("Unable to fetch correlation data")
             
-            # Provide specific guidance based on asset types
             if crypto_symbols and not CRYPTO_AVAILABLE:
-                st.error("🔧 **Crypto Support Missing**: Install CCXT to analyze crypto correlations")
+                st.error("**Crypto Support Missing**: Install CCXT to analyze crypto correlations")
                 st.code("pip install ccxt", language="bash")
             
             if crypto_symbols and stock_symbols:
-                st.info("💡 **Mixed Portfolio Detected**: Analyzing both traditional and crypto assets")
+                st.info("**Mixed Portfolio Detected**: Analyzing both traditional and crypto assets")
                 st.write("**Possible Issues:**")
                 st.write("• Crypto symbols need CCXT library")
                 st.write("• Different data sources (Yahoo Finance vs Binance)")
@@ -945,11 +930,9 @@ def render_portfolio_risk_page():
     
     st.divider()
     
-    # Monte Carlo Simulation Results
     st.header("Monte Carlo Simulation")
     
     if st.button("Run Monte Carlo Simulation"):
-        # Show performance info
         if num_simulations >= 1000:
             try:
                 from numba import jit
@@ -1184,8 +1167,153 @@ def render_portfolio_risk_page():
     
     st.divider()
     
-    # Data Sources and Methodology (for transparency)
-    with st.expander("📊 Data Sources & Methodology"):
+    st.header("Portfolio Allocation Recommendations")
+    portfolio_assets = list(set([pos.symbol for pos in positions if hasattr(pos, 'symbol')]))
+    
+    if len(portfolio_assets) >= 2:
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+            st.subheader("Allocation Settings")
+            
+            risk_profile = st.selectbox(
+                "Risk Profile",
+                ["Conservative", "Moderate", "Aggressive"],
+                index=1,
+                help="Risk tolerance determines target return and volatility constraints"
+            )
+            
+            market_regime = st.selectbox(
+                "Market Regime",
+                ["Normal", "Bull Market", "Bear Market", "High Volatility"],
+                index=0,
+                help="Current market conditions affect allocation strategy"
+            )
+            
+            current_allocations = {}
+            total_value = sum([pos.get_current_value() for pos in positions])
+            for pos in positions:
+                if hasattr(pos, 'symbol') and total_value > 0:
+                    weight = pos.get_current_value() / total_value
+                    current_allocations[pos.symbol] = current_allocations.get(pos.symbol, 0) + weight
+            
+            if st.button("Generate Recommendations", type="primary", use_container_width=True):
+                with st.spinner("Analyzing portfolio allocation strategies..."):
+                    try:
+                        price_data = fetch_historical_data(portfolio_assets, period="1y")
+                        if not price_data.empty:
+                            returns_data = calculate_returns(price_data)
+                            
+                            recommendations = portfolio_allocator.get_allocation_recommendation(returns_data=returns_data, assets=portfolio_assets,
+                                risk_profile=risk_profile.lower(),
+                                current_allocations=current_allocations,
+                                market_regime=market_regime.lower().replace(' ', '_')
+                            )
+                            
+                            st.session_state['allocation_recommendations'] = recommendations
+                            st.success("Allocation analysis complete!")
+                        else:
+                            st.error("Unable to fetch sufficient historical data for analysis")
+                    except Exception as e:
+                        st.error(f"Error generating recommendations: {e}")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            if 'allocation_recommendations' in st.session_state:
+                recommendations = st.session_state['allocation_recommendations']
+                
+                st.subheader("Allocation Strategy Rankings")
+                
+                for i, (strategy_name, strategy_data) in enumerate(recommendations['ranked_strategies'][:3]):
+                    with st.expander(f"#{i+1}: {strategy_name} (Score: {strategy_data['suitability_score']:.1f})", expanded=(i==0)):
+                        
+                        col2_1, col2_2, col2_3 = st.columns(3)
+                        with col2_1:
+                            st.metric("Expected Return", f"{strategy_data['metrics']['return']:.1%}")
+                        with col2_2:
+                            st.metric("Volatility", f"{strategy_data['metrics']['volatility']:.1%}")
+                        with col2_3:
+                            st.metric("Sharpe Ratio", f"{strategy_data['metrics']['sharpe_ratio']:.2f}")
+                        
+                        st.write("**Recommended Allocation:**")
+                        allocation_df = pd.DataFrame([
+                            {'Asset': asset, 'Weight': f"{weight:.1%}", 'Dollar Amount': f"${weight * total_value:,.0f}"}
+                            for asset, weight in strategy_data['allocation'].items()
+                            if weight > 0.01  # Only show allocations > 1%
+                        ])
+                        st.dataframe(allocation_df, use_container_width=True, hide_index=True)
+                
+                st.subheader("Rebalancing Suggestions")
+                if recommendations['top_recommendation']:
+                    top_strategy = recommendations['top_recommendation'][1]['allocation']
+                    rebalancing_suggestions = portfolio_allocator.rebalancing_suggestions(
+                        current_allocations, top_strategy, threshold=0.05
+                    )
+                    
+                    if rebalancing_suggestions:
+                        st.write(f"**Based on {recommendations['top_recommendation'][0]} strategy:**")
+                        
+                        rebalance_df = pd.DataFrame(rebalancing_suggestions)
+                        rebalance_df = rebalance_df[['asset', 'action', 'current_weight', 'target_weight', 'difference']]
+                        rebalance_df['current_weight'] = rebalance_df['current_weight'].apply(lambda x: f"{x:.1%}")
+                        rebalance_df['target_weight'] = rebalance_df['target_weight'].apply(lambda x: f"{x:.1%}")
+                        rebalance_df['difference'] = rebalance_df['difference'].apply(lambda x: f"{x:+.1%}")
+                        rebalance_df.columns = ['Asset', 'Action', 'Current %', 'Target %', 'Change']
+                        
+                        st.dataframe(rebalance_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Portfolio is well-balanced. No major rebalancing needed.")
+                
+                st.subheader("Strategy Comparison")
+                strategy_comparison = []
+                for strategy_name, strategy_data in recommendations['recommendations'].items():
+                    strategy_comparison.append({
+                        'Strategy': strategy_name,
+                        'Return': strategy_data['metrics']['return'],
+                        'Volatility': strategy_data['metrics']['volatility'],
+                        'Sharpe Ratio': strategy_data['metrics']['sharpe_ratio'],
+                        'Suitability Score': strategy_data['suitability_score']
+                    })
+                
+                comparison_df = pd.DataFrame(strategy_comparison)
+                fig, ax = plt.subplots(figsize=(10, 6))
+                scatter = ax.scatter(comparison_df['Volatility'], comparison_df['Return'], 
+                                   s=comparison_df['Suitability Score']*10, 
+                                   c=comparison_df['Suitability Score'], 
+                                   cmap='viridis', alpha=0.7)
+                
+                for i, strategy in enumerate(comparison_df['Strategy']):
+                    ax.annotate(strategy, (comparison_df['Volatility'][i], comparison_df['Return'][i]),
+                               xytext=(5, 5), textcoords='offset points', fontsize=8)
+                
+                ax.set_xlabel('Volatility')
+                ax.set_ylabel('Expected Return')
+                ax.set_title('Risk-Return Profile of Allocation Strategies')
+                ax.grid(True, alpha=0.3)
+                plt.colorbar(scatter, label='Suitability Score')
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+                with st.expander("Risk Profile Insights"):
+                    profile_data = portfolio_allocator.risk_tolerance_profiles.get(risk_profile.lower())
+                    if profile_data:
+                        st.write(f"**{risk_profile} Risk Profile:**")
+                        st.write(f"• Target Annual Return: {profile_data['target_return']:.1%}")
+                        st.write(f"• Maximum Volatility: {profile_data['max_volatility']:.1%}")
+                        
+                        current_metrics = recommendations['top_recommendation'][1]['metrics']
+                        if current_metrics['volatility'] > profile_data['max_volatility']:
+                            st.warning(f"Top strategy exceeds your volatility tolerance by {(current_metrics['volatility'] - profile_data['max_volatility']):.1%}")
+                        else:
+                            st.success(f"Top strategy aligns with your risk tolerance")
+    else:
+        st.info("Add at least 2 different assets to get allocation recommendations")
+    
+    st.divider()
+    
+    with st.expander("Data Sources & Methodology"):
         st.write("**Data Sources:**")
         st.write("• **Stock Prices**: Yahoo Finance API (real-time)")
         st.write("• **Cryptocurrency Prices**: Binance API via CCXT (real-time)")
@@ -1194,7 +1322,7 @@ def render_portfolio_risk_page():
         st.write("• **Greeks**: Mathematical derivatives of Black-Scholes formula")
         st.write("• **Risk-free Rate**: User input (typically 10-year Treasury rate)")
         
-        st.write("**⚠️ Important Notes:**")
+        st.write("**Important Notes:**")
         st.write("• **NO real options market data** - this is theoretical pricing")
         st.write("• **Volatility** is historical stock volatility, not implied volatility")
         st.write("• **Greeks** are calculated, not from options exchanges")
@@ -1209,14 +1337,11 @@ def render_portfolio_risk_page():
     
     st.divider()
     
-    # Portfolio Composition Chart
     st.header("Portfolio Composition")
     
     if len(positions) > 0:
-        # Create a simple composition chart
         symbols = [pos.symbol for pos in positions]
         quantities = [abs(pos.quantity) for pos in positions]
-        
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.pie(quantities, labels=symbols, autopct='%1.1f%%', startangle=90)
         ax.set_title('Portfolio Composition by Quantity')

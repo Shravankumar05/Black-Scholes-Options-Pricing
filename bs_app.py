@@ -8,16 +8,355 @@ import matplotlib.pyplot as plt
 from bs_functions import black_scholes_call, black_scholes_puts, implied_volatility, delta_call, delta_put, gamma, theta_put, theta_call, vega, phi, pdf, black_scholes_vectorized, black_scholes_multithreaded, black_scholes_optimized, black_scholes_jit, phi_vectorized, pdf_vectorized, NUMBA_AVAILABLE
 from db_utils import create_table, insert_calculation, insert_output, insert_outputs_bulk
 from portfolio_risk import render_portfolio_risk_page
+st.set_page_config(page_title="Black-Scholes Options Dashboard", page_icon="chart_with_upwards_trend",  layout="wide", initial_sidebar_state="expanded")
 
-st.set_page_config(page_title="Black-Scholes Options Analysis Dashboard", page_icon="📈", layout="wide")
+try:
+    from options_market_data import options_market_data
+    from enhanced_visualizations import enhanced_viz
+    from ml_components import ml_predictor, vol_forecaster, regime_detector
+    ENHANCED_FEATURES_AVAILABLE = True
+except ImportError as e:
+    ENHANCED_FEATURES_AVAILABLE = False
+    st.error(f"Enhanced features not available: {e}")
 
-page = st.sidebar.selectbox("Select Analysis Type", ["Individual Black-Scholes", "Portfolio Risk Analysis"], index=0)
+st.markdown("""
+<style>
+    .stApp {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    .stSidebar {
+        background: linear-gradient(180deg, #212529 0%, #343a40 100%);
+    }
+    
+    .stSidebar .stSelectbox label,
+    .stSidebar .stTextInput label,
+    .stSidebar .stNumberInput label,
+    .stSidebar .stSlider label {
+        color: #f8f9fa !important;
+        font-weight: 600;
+    }
+    
+    .stSidebar .stMarkdown {
+        color: #f8f9fa;
+    }
+    
+    .stSidebar h1, .stSidebar h2, .stSidebar h3 {
+        color: #f8f9fa !important;
+    }
+    
+    /* Professional input styling */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select {
+        border: 2px solid #212529 !important;
+        border-radius: 8px !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: #495057 !important;
+        box-shadow: 0 0 0 3px rgba(73, 80, 87, 0.1) !important;
+    }
+    
+    .stSlider > div > div > div {
+        border: 1px solid #212529 !important;
+        border-radius: 8px !important;
+        background-color: #ffffff !important;
+    }
+    
+    .metric-container {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin: 0.5rem 0;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: #212529;
+        color: #f8f9fa;
+        border-radius: 8px 8px 0 0;
+        padding: 12px 24px;
+        font-weight: 600;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: #495057 !important;
+        color: #f8f9fa !important;
+    }
+    
+    .stButton > button {
+        background: linear-gradient(135deg, #212529 0%, #495057 100%);
+        color: #f8f9fa;
+        border: 2px solid #212529;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .success-banner {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border: 2px solid #b8dabd;
+        color: #155724;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .info-banner {
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        border: 2px solid #abdde5;
+        color: #0c5460;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    h1, h2, h3 {
+        color: #212529 !important;
+        font-weight: 700 !important;
+    }
+    
+    .stDataFrame {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #dee2e6;
+    }
+    
+    .explanation-box {
+        background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+        border-left: 4px solid #495057;
+        padding: 1rem;
+        border-radius: 0 8px 8px 0;
+        margin: 1rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
 
+analysis_modes = ["Individual Black-Scholes", "Portfolio Risk Analysis"]
+if ENHANCED_FEATURES_AVAILABLE:
+    analysis_modes.extend(["Options Market Analysis", "ML Volatility Forecasting"])
+
+page = st.sidebar.selectbox("Select Analysis Type", analysis_modes, index=0)
 if page == "Portfolio Risk Analysis":
     render_portfolio_risk_page()
     st.stop()
+elif page == "Options Market Analysis" and ENHANCED_FEATURES_AVAILABLE:
+    st.title("Live Options Market Analysis")
+    
+    st.markdown("""
+    <div class="explanation-box">
+    <h4>Live Options Market Analysis</h4>
+    <p>This section provides real-time options market data analysis including:</p>
+    <ul>
+        <li>Live options chain data for any stock symbol</li>
+        <li>Implied volatility surface visualization</li>
+        <li>Options flow analysis to identify unusual activity</li>
+        <li>Machine learning models trained on market data</li>
+    </ul>
+    <p><strong>How to use:</strong> Enter a stock symbol, select your target days to expiry, and click "Fetch Options Data" to begin.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        st.header("Market Data Controls")
+        symbol = st.text_input("Stock Symbol", value="AAPL", help="Enter stock symbol (e.g., AAPL, MSFT, TSLA)")
+        days_to_expiry = st.slider("Target Days to Expiry", 7, 90, 30)
+        
+        if st.button("Fetch Options Data", type="primary", use_container_width=True):
+            with st.spinner("Fetching options market data..."):
+                options_data = options_market_data.fetch_options_chain(symbol, days_to_expiry)
+                
+                if options_data:
+                    st.session_state['options_data'] = options_data
+                    st.success(f"Loaded options data for {symbol}")
+                else:
+                    st.error("Failed to fetch options data")
+        
+        if st.button("Analyze Options Flow", use_container_width=True):
+            with st.spinner("Analyzing options flow..."):
+                flow_data = options_market_data.analyze_options_flow(symbol)
+                
+                if flow_data:
+                    st.session_state['flow_data'] = flow_data
+                    st.success("Options flow analysis complete")
+                else:
+                    st.error("Failed to analyze options flow")
+    
+    with col2:
+        if 'options_data' in st.session_state:
+            options_data = st.session_state['options_data']
+            
+            st.subheader(f"Options Chain for {options_data['symbol']}")
+            
+            # Metrics display
+            col2_1, col2_2, col2_3 = st.columns(3)
+            with col2_1:
+                st.metric("Current Price", f"${options_data['current_price']:.2f}")
+            with col2_2:
+                st.metric("Expiration", options_data['expiration'])
+            with col2_3:
+                st.metric("Days to Expiry", f"{options_data['days_to_expiry']} days")
+            
+            # Display calls and puts in tabs
+            tab1, tab2 = st.tabs(["Calls", "Puts"])
+            
+            with tab1:
+                if not options_data['calls'].empty:
+                    st.dataframe(
+                        options_data['calls'][['strike', 'lastPrice', 'bid', 'ask', 'volume', 'openInterest', 'impliedVolatility']],
+                        use_container_width=True
+                    )
+            
+            with tab2:
+                if not options_data['puts'].empty:
+                    st.dataframe(
+                        options_data['puts'][['strike', 'lastPrice', 'bid', 'ask', 'volume', 'openInterest', 'impliedVolatility']],
+                        use_container_width=True
+                    )
+        
+        # Options flow analysis display
+        if 'flow_data' in st.session_state:
+            st.subheader("Options Flow Analysis")
+            enhanced_viz.plot_options_flow_dashboard(st.session_state['flow_data'])
+    
+    # Implied Volatility Surface
+    st.header("Implied Volatility Surface")
+    st.markdown("""
+    <div class="explanation-box">
+    <p><strong>Implied Volatility Surface:</strong> This 3D visualization shows how implied volatility varies with strike price (moneyness) and time to expiry. 
+    Higher implied volatility indicates higher uncertainty or demand for options at those strike prices and expirations.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Generate IV Surface", type="primary"):
+        with st.spinner("Calculating implied volatility surface..."):
+            iv_surface = options_market_data.calculate_implied_volatility_surface(symbol)
+            
+            if not iv_surface.empty:
+                st.session_state['iv_surface'] = iv_surface
+                enhanced_viz.plot_volatility_surface_3d(iv_surface)
+                
+                # Train ML model on IV data
+                if ml_predictor.train_implied_volatility_model(iv_surface):
+                    st.success("ML model trained on implied volatility data")
+            else:
+                st.warning("Could not generate implied volatility surface")
+    
+    st.stop()
+    
+elif page == "ML Volatility Forecasting" and ENHANCED_FEATURES_AVAILABLE:
+    st.title("ML-Powered Market Analysis")
+    
+    st.markdown("""
+    <div class="explanation-box">
+    <h4>AI-Powered Market Analysis</h4>
+    <p>This section uses machine learning to forecast market volatility and detect market regimes:</p>
+    <ul>
+        <li><strong>Volatility Forecasting:</strong> Predicts future market volatility using historical data</li>
+        <li><strong>Market Regime Detection:</strong> Identifies current market conditions (Bull, Bear, Sideways, High Volatility)</li>
+        <li><strong>Advanced ML Models:</strong> Uses Random Forest and other algorithms for predictions</li>
+    </ul>
+    <p><strong>How to use:</strong> Enter a stock symbol and forecast horizon, then click "Run ML Analysis".</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.header("ML Configuration")
+        symbol = st.text_input("Symbol for Analysis", value="AAPL")
+        forecast_days = st.slider("Forecast Horizon (days)", 1, 60, 30)
+        
+        if st.button("Run ML Analysis", type="primary", use_container_width=True):
+            with st.spinner("Running machine learning analysis..."):
+                try:
+                    # Fetch historical data
+                    ticker = yf.Ticker(symbol)
+                    hist_data = ticker.history(period="2y")
+                    
+                    if not hist_data.empty:
+                        # Market regime detection
+                        regime = regime_detector.detect_current_regime(hist_data)
+                        
+                        # Volatility forecasting
+                        if vol_forecaster.train_volatility_model(hist_data):
+                            forecast_vol = vol_forecaster.forecast_volatility(hist_data, forecast_days)
+                            
+                            st.session_state['ml_results'] = {
+                                'symbol': symbol,
+                                'regime': regime,
+                                'forecast_vol': forecast_vol,
+                                'hist_data': hist_data
+                            }
+                            
+                            st.success("ML analysis complete")
+                        else:
+                            st.error("Failed to train volatility model")
+                    else:
+                        st.error("No historical data available")
+                        
+                except Exception as e:
+                    st.error(f"Error in ML analysis: {e}")
+    
+    with col2:
+        if 'ml_results' in st.session_state:
+            results = st.session_state['ml_results']
+            
+            st.subheader(f"AI Analysis for {results['symbol']}")
+            
+            # Results metrics
+            col2_1, col2_2, col2_3 = st.columns(3)
+            with col2_1:
+                st.metric("Market Regime", results['regime'])
+            with col2_2:
+                st.metric("Forecasted Volatility", f"{results['forecast_vol']:.1%}")
+            with col2_3:
+                current_vol = results['hist_data']['Close'].pct_change().std() * np.sqrt(252)
+                vol_change = (results['forecast_vol'] - current_vol) / current_vol
+                st.metric("Vol Change", f"{vol_change:+.1%}")
+    
+    st.stop()
 
-st.title("Black–Scholes-Options Pricer")
+st.title("Black-Scholes Options Pricer")
+st.markdown("""
+<div class="explanation-box">
+<h4>Black-Scholes Options Pricing Model</h4>
+<p>This tool calculates theoretical option prices using the Black-Scholes model:</p>
+<ul>
+    <li><strong>Call/Put Prices:</strong> Theoretical prices for European options</li>
+    <li><strong>Heatmaps:</strong> Visualize how option prices change with spot price and volatility</li>
+    <li><strong>P&L Analysis:</strong> Profit/Loss visualization based on purchase prices</li>
+    <li><strong>Greeks:</strong> Sensitivity measures (Delta, Gamma, Theta, Vega)</li>
+</ul>
+<p><strong>How to use:</strong> Enter model parameters in the sidebar, then analyze the results in the main panel.</p>
+</div>
+""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("Model Inputs")
@@ -42,7 +381,8 @@ with st.sidebar:
     min_value=0.0,
     value=default_spot,
     step=1.0,
-    key="spot_input"
+    key="spot_input",
+    help="Current market price of the underlying asset"
     )
 
     default_vol = float(live_vol) if live_vol is not None else 0.2
@@ -52,18 +392,20 @@ with st.sidebar:
         value=default_vol,
         step=0.001,
         format="%.3f",
-        key="vol_input"
+        key="vol_input",
+        help="Annualized volatility of the underlying asset (standard deviation of returns)"
     )
-    K = st.number_input("Strike price (K)",           min_value=0.0, value=100.0, step=1.0)
-    T = st.number_input("Time to expiry (T, years)",  min_value=0.0, value=1.0,   step=0.1)
-    r = st.number_input("Risk-free rate (r)",         min_value=0.0, value=0.05,  step=0.01)
+    K = st.number_input("Strike price (K)",           min_value=0.0, value=100.0, step=1.0, help="Exercise price of the option")
+    T = st.number_input("Time to expiry (T, years)",  min_value=0.0, value=1.0,   step=0.1, help="Time until option expiration (in years)")
+    r = st.number_input("Risk-free rate (r)",         min_value=0.0, value=0.05,  step=0.01, help="Risk-free interest rate (e.g., Treasury bill rate)")
 
     st.divider()
     st.header("Heatmap Ranges")
-    S_min     = st.number_input("Min spot (Sₘᵢₙ)",    min_value=0.0, value=50.0,  step=1.0)
-    S_max     = st.number_input("Max spot (Sₘₐₓ)",    min_value=0.0, value=150.0, step=1.0)
-    sigma_min = st.number_input("Min vol (σₘᵢₙ)",     min_value=0.01,value=0.1,   step=0.01)
-    sigma_max = st.number_input("Max vol (σₘₐₓ)",     min_value=0.01,value=0.5,   step=0.01)
+    st.markdown("Define the range of spot prices and volatilities for heatmap visualization:")
+    S_min     = st.number_input("Min spot (Sₘᵢₙ)",    min_value=0.0, value=50.0,  step=1.0, help="Minimum spot price for heatmap")
+    S_max     = st.number_input("Max spot (Sₘₐₓ)",    min_value=0.0, value=150.0, step=1.0, help="Maximum spot price for heatmap")
+    sigma_min = st.number_input("Min vol (σₘᵢₙ)",     min_value=0.01,value=0.1,   step=0.01, help="Minimum volatility for heatmap")
+    sigma_max = st.number_input("Max vol (σₘₐₓ)",     min_value=0.01,value=0.5,   step=0.01, help="Maximum volatility for heatmap")
     st.divider()
     st.header("Grid Resolution")
     N = st.slider(
@@ -109,10 +451,11 @@ with st.sidebar:
     
     st.divider()
     st.header("Purchase Prices")
+    st.markdown("Enter the prices at which you purchased the options to calculate profit/loss:")
     call_price = black_scholes_call(S, K, T, r, sigma)
     put_price  = black_scholes_puts(S, K, T, r, sigma)
-    call_buy_price = st.number_input("Call purchase price", min_value=0.0, value=call_price, step=0.01)
-    put_buy_price  = st.number_input("Put purchase price",  min_value=0.0, value=put_price,  step=0.01)
+    call_buy_price = st.number_input("Call purchase price", min_value=0.0, value=call_price, step=0.01, help="Price at which you bought the call option")
+    put_buy_price  = st.number_input("Put purchase price",  min_value=0.0, value=put_price,  step=0.01, help="Price at which you bought the put option")
 
     imp_vol_call = None
     imp_vol_put  = None
@@ -136,13 +479,13 @@ with st.sidebar:
     st.divider()
     st.header("Generate and Download Data")
     st.markdown("Click the button to generate the heatmaps and save their data to a SQLite database. You can then download the database file.")
-    save = st.button("📊 Generate & Save to DB")
+    save = st.button("Generate & Save to DB")
 
     if os.path.exists("data.db"):
         with open("data.db", "rb") as f:
             db_bytes = f.read()
         st.download_button(
-            label="📥 Download SQLite DB",
+            label="Download SQLite DB",
             data=db_bytes,
             file_name="data.db",
             mime="application/x-sqlite3"
@@ -186,25 +529,32 @@ if save:
     insert_outputs_bulk(calc_id, bulk_data)
     st.success(f"Saved calc_id={calc_id} with {len(bulk_data)} rows using vectorized bulk insert.")
 
-st.header("1️⃣ Options-Price Heatmaps")
+st.header("Options-Price Heatmaps")
+st.markdown("""
+<div class="explanation-box">
+<p><strong>Options Price Heatmaps:</strong> These visualizations show how option prices change across different combinations of spot prices and volatilities. 
+Red colors indicate higher option prices, while green colors indicate lower prices.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Performance indicator
 if NUMBA_AVAILABLE:
-    perf_method = "🚀 JIT-compiled (Numba)"
+    perf_method = "JIT-compiled (Numba)"
     perf_color = "success"
 elif N * N >= 50000:
-    perf_method = "⚡ Multi-threaded (2 cores)"
+    perf_method = "Multi-threaded (2 cores)"
     perf_color = "info"
 else:
-    perf_method = "🔢 Vectorized (NumPy)"
+    perf_method = "Vectorized (NumPy)"
     perf_color = "warning"
 
-st.caption("Enter your model parameters in the sidebar to observe how the call and put value varies with spot price and volatility.")
+st.info(f"**Performance Mode:** {perf_method}")
+
 col0, col1 = st.columns(2)
 with col0:
-    st.metric(label="Call Option Price", value=f"{call_price:.4f}", border= True)
+    st.metric(label="Call Option Price", value=f"{call_price:.4f}")
 with col1:
-    st.metric(label="Put Option Price",  value=f"{put_price:.4f}", border= True)
+    st.metric(label="Put Option Price",  value=f"{put_price:.4f}")
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("Call Option Price")
@@ -213,7 +563,8 @@ with col1:
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn_r")
     fig1.colorbar(im1, ax=ax1, label="Price")
-    ax1.set_xlabel("S"); ax1.set_ylabel("σ")
+    ax1.set_xlabel("Spot Price (S)")
+    ax1.set_ylabel("Volatility (σ)")
     st.pyplot(fig1)
 
 with col2:
@@ -223,11 +574,18 @@ with col2:
                      extent=[S_min, S_max, sigma_min, sigma_max],
                      aspect="auto", cmap="RdYlGn_r")
     fig2.colorbar(im2, ax=ax2, label="Price")
-    ax2.set_xlabel("S"); ax2.set_ylabel("σ")
+    ax2.set_xlabel("Spot Price (S)")
+    ax2.set_ylabel("Volatility (σ)")
     st.pyplot(fig2)
 
-st.header("2️⃣ P&L Heatmaps")
-st.info("Enter your purchase prices in the sidebar to observe how the P&L varies with spot price and volatility. Also the implied volatility from the market option values that you have provided has been given.")
+st.header("P&L Heatmaps")
+st.markdown("""
+<div class="explanation-box">
+<p><strong>Profit & Loss Heatmaps:</strong> These visualizations show your potential profit or loss across different combinations of spot prices and volatilities, 
+based on the purchase prices you entered. Green areas indicate profit, while red areas indicate loss.</p>
+</div>
+""", unsafe_allow_html=True)
+
 
 col0, col1 = st.columns(2)
 col2, col3 = st.columns(2)
@@ -235,11 +593,11 @@ col2, col3 = st.columns(2)
 with col2:
     label = "Call Implied Volatility"
     value = f"{imp_vol_call:.4f}" if isinstance(imp_vol_call, float) else imp_vol_call or "–"
-    st.metric(label, value, border=True)
+    st.metric(label, value)
 with col3:
     label = "Put Implied Volatility"
     value = f"{imp_vol_put:.4f}" if isinstance(imp_vol_put, float) else imp_vol_put or "–"
-    st.metric(label, value, border=True)
+    st.metric(label, value)
 
 col3, col4 = st.columns(2)
 
@@ -251,7 +609,8 @@ with col3:
                      aspect="auto", cmap="RdYlGn",
                      vmin=-max_abs, vmax=max_abs)
     fig3.colorbar(im3, ax=ax3, label="P&L")
-    ax3.set_xlabel("S"); ax3.set_ylabel("σ")
+    ax3.set_xlabel("Spot Price (S)")
+    ax3.set_ylabel("Volatility (σ)")
     st.pyplot(fig3)
 
 with col4:
@@ -262,11 +621,18 @@ with col4:
                      aspect="auto", cmap="RdYlGn",
                      vmin=-max_abs, vmax=max_abs)
     fig4.colorbar(im4, ax=ax4, label="P&L")
-    ax4.set_xlabel("S"); ax4.set_ylabel("σ")
+    ax4.set_xlabel("Spot Price (S)")
+    ax4.set_ylabel("Volatility (σ)")
     st.pyplot(fig4)
 
-st.header("3️⃣ Break-Even Curves")
-st.info("These plots show P&L vs. spot price at the midpoint volatility of your heatmaps. The dashed horizontal line is P&L = 0 (your breakeven point).")
+st.header("Break-Even Curves")
+st.markdown("""
+<div class="explanation-box">
+<p><strong>Break-Even Curves:</strong> These plots show how your profit/loss changes with the spot price at the midpoint volatility of your heatmaps. 
+The dashed horizontal line represents the breakeven point (P&L = 0).</p>
+</div>
+""", unsafe_allow_html=True)
+
 i_mid     = N // 2
 sigma_mid = sigma_grid[i_mid]
 S_vals    = S_grid
@@ -277,26 +643,39 @@ colA, colB = st.columns(2)
 with colA:
     st.subheader(f"Call Break-Even Curve (σ = {sigma_mid:.3f})")
     fig_call, ax_call = plt.subplots()
-    ax_call.plot(S_vals, call_pnl_slice, label="Call P&L")
+    ax_call.plot(S_vals, call_pnl_slice, label="Call P&L", color='#00D4AA', linewidth=2)
     ax_call.axhline(0, color="k", linestyle="--", label="Breakeven")
     ax_call.set_xlabel("Spot price S")
     ax_call.set_ylabel("P&L")
     ax_call.legend()
+    ax_call.grid(True, alpha=0.3)
     st.pyplot(fig_call)
 
 with colB:
     st.subheader(f"Put Break-Even Curve (σ = {sigma_mid:.3f})")
     fig_put, ax_put = plt.subplots()
-    ax_put.plot(S_vals, put_pnl_slice, label="Put P&L")
+    ax_put.plot(S_vals, put_pnl_slice, label="Put P&L", color='#FF6B6B', linewidth=2)
     ax_put.axhline(0, color="k", linestyle="--", label="Breakeven")
     ax_put.set_xlabel("Spot price S")
     ax_put.set_ylabel("P&L")
     ax_put.legend()
+    ax_put.grid(True, alpha=0.3)
     st.pyplot(fig_put)
 
 
-st.header("4️⃣ Greeks")
-st.info("The Greeks measure the sensitivity of option prices to the input factors. The values below are calculated at the current model inputs.")
+st.header("Greeks")
+st.markdown("""
+<div class="explanation-box">
+<p><strong>The Greeks:</strong> These measure the sensitivity of option prices to various factors:</p>
+<ul>
+    <li><strong>Delta:</strong> Sensitivity to changes in the underlying asset price</li>
+    <li><strong>Gamma:</strong> Rate of change of Delta</li>
+    <li><strong>Theta:</strong> Sensitivity to time decay</li>
+    <li><strong>Vega:</strong> Sensitivity to changes in volatility</li>
+</ul>
+</div>
+""", unsafe_allow_html=True)
+
 
 greek_call = {
     "Delta": delta_call(S, K, T, r, sigma),
@@ -313,9 +692,31 @@ greek_put = {
 
 cols_call = st.columns(4)
 for col, (name, val) in zip(cols_call, greek_call.items()):
-    col.metric(label=f"Call {name}", value=f"{val:.3f}", border=True)
+    col.metric(label=f"Call {name}", value=f"{val:.3f}")
 
 cols_put = st.columns(4)
 for col, (name, val) in zip(cols_put, greek_put.items()):
-    col.metric(label=f"Put {name}", value=f"{val:.3f}", border=True)
+    col.metric(label=f"Put {name}", value=f"{val:.3f}")
+
+if ENHANCED_FEATURES_AVAILABLE:
+    st.header("Advanced Greeks Analysis")
+    st.markdown("""
+    <div class="explanation-box">
+    <p><strong>Advanced Greeks Analysis:</strong> This visualization shows how the Greeks change across different spot prices, 
+    providing insight into how option sensitivities evolve as the underlying asset price moves.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    S_range = np.linspace(S_min, S_max, 100)
+    greeks_data = {
+        'delta_call': [delta_call(s, K, T, r, sigma) for s in S_range],
+        'delta_put': [delta_put(s, K, T, r, sigma) for s in S_range],
+        'gamma': [gamma(s, K, T, r, sigma) for s in S_range],
+        'theta_call': [theta_call(s, K, T, r, sigma) for s in S_range],
+        'theta_put': [theta_put(s, K, T, r, sigma) for s in S_range],
+        'vega': [vega(s, K, T, r, sigma) for s in S_range]
+    }
+    
+    enhanced_viz.plot_advanced_greeks_dashboard(S_range, greeks_data)
+
 
