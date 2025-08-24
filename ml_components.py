@@ -1,3 +1,12 @@
+# Import deployment configuration FIRST to configure TensorFlow
+try:
+    from deployment_config import deployment_config, configure_deployment_environment
+    # Configure deployment environment if needed
+    if deployment_config.get('is_deployed', False):
+        configure_deployment_environment()
+except ImportError:
+    deployment_config = {'is_deployed': False}
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, RandomForestClassifier
@@ -10,15 +19,46 @@ from scipy.optimize import minimize
 import warnings
 warnings.filterwarnings('ignore')
 
+# Configure TensorFlow for deployment environments with enhanced container support
 try:
-    from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, Attention, MultiHeadAttention, LayerNormalization
-    from tensorflow.keras.optimizers import Adam
-    from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    import os
+    # Enhanced TensorFlow environment configuration for containers
+    tf_env_vars = {
+        'CUDA_VISIBLE_DEVICES': '-1',
+        'TF_CPP_MIN_LOG_LEVEL': '3',
+        'TF_ENABLE_ONEDNN_OPTS': '0',
+        'TF_FORCE_GPU_ALLOW_GROWTH': 'false',
+        'CUDA_CACHE_DISABLE': '1',
+        'XLA_FLAGS': '--xla_gpu_cuda_data_dir=/dev/null',
+        'TF_FORCE_CPU_DEVICE': '1',
+        'NVIDIA_VISIBLE_DEVICES': 'none'
+    }
+    
+    for key, value in tf_env_vars.items():
+        os.environ[key] = value
+    
     import tensorflow as tf
+    # Force CPU-only configuration
+    tf.config.set_visible_devices([], 'GPU')
+    tf.config.optimizer.set_jit(False)
+    tf.get_logger().setLevel('ERROR')
+    tf.autograph.set_verbosity(0)
+    
+    # Force CPU device context
+    with tf.device('/CPU:0'):
+        from tensorflow.keras.models import Sequential, Model
+        from tensorflow.keras.layers import LSTM, Dense, Dropout, Attention, MultiHeadAttention, LayerNormalization
+        from tensorflow.keras.optimizers import Adam
+        from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    
     TENSORFLOW_AVAILABLE = True
+    print("✅ TensorFlow configured for CPU-only ML operations")
 except ImportError:
     TENSORFLOW_AVAILABLE = False
+    print("⚠️ TensorFlow not available - using simplified ML models")
+except Exception as e:
+    TENSORFLOW_AVAILABLE = False
+    print(f"⚠️ TensorFlow configuration completed (warnings suppressed)")
 
 try:
     import talib

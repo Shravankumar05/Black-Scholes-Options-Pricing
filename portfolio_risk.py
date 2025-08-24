@@ -8,6 +8,15 @@ from bs_functions import (black_scholes_call, black_scholes_puts, delta_call, de
 from portfolio_utils import (fetch_historical_data, calculate_returns, historical_var, parametric_var, monte_carlo_var, calculate_cvar, stress_test_scenarios, apply_stress_scenario, calculate_portfolio_beta, calculate_maximum_drawdown, calculate_sharpe_ratio, create_correlation_heatmap, analyze_monte_carlo_results)
 from portfolio_allocation import portfolio_allocator
 
+# Import deployment configuration
+try:
+    from deployment_config import safe_pyplot_display
+except ImportError:
+    def safe_pyplot_display(fig, **kwargs):
+        st.pyplot(fig, clear_figure=True)
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+
 def _is_crypto_symbol_simple(symbol):
     crypto_indicators = ['/USDT', '/BUSD', '/BTC', '/ETH', '/BNB']
     return any(indicator in symbol.upper() for indicator in crypto_indicators)
@@ -881,8 +890,7 @@ def render_portfolio_risk_page():
                 
                 ax.set_title('Asset Correlation Matrix')
                 plt.tight_layout()
-                st.pyplot(fig, clear_figure=True)
-                plt.close(fig)
+                safe_pyplot_display(fig)
             
             with col2:
                 st.write("**Correlation Insights:**")
@@ -1057,8 +1065,7 @@ def render_portfolio_risk_page():
                         f'${value:,.0f}', ha='center', va='bottom', fontsize=9)
             
             plt.tight_layout()
-            st.pyplot(fig, clear_figure=True)
-            plt.close(fig)
+            safe_pyplot_display(fig)
             
             # Statistical Analysis
             st.subheader("Statistical Analysis")
@@ -1347,5 +1354,4 @@ def render_portfolio_risk_page():
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.pie(quantities, labels=symbols, autopct='%1.1f%%', startangle=90)
         ax.set_title('Portfolio Composition by Quantity')
-        st.pyplot(fig, clear_figure=True)
-        plt.close(fig)
+        safe_pyplot_display(fig)

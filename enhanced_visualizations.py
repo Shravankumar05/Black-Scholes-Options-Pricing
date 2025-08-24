@@ -4,6 +4,14 @@ import pandas as pd
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
+# Import deployment configuration
+try:
+    from deployment_config import safe_pyplot_display
+except ImportError:
+    def safe_pyplot_display(fig, **kwargs):
+        st.pyplot(fig, clear_figure=True)
+        plt.close(fig)
+
 class EnhancedVisualizations:
     def __init__(self):
         self.color_scheme = {
@@ -42,8 +50,7 @@ class EnhancedVisualizations:
             plt.colorbar(scatter, ax=ax, shrink=0.5, aspect=5, label='Implied Volatility')
             plt.tight_layout()
             
-            st.pyplot(fig, clear_figure=True)
-            plt.close(fig)  # Ensure proper cleanup
+            safe_pyplot_display(fig)
         except Exception as e:
             st.error(f"Error plotting volatility surface: {e}")
     
@@ -92,8 +99,7 @@ class EnhancedVisualizations:
                 ax2.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            st.pyplot(fig, clear_figure=True)
-            plt.close(fig)
+            safe_pyplot_display(fig)
         except Exception as e:
             st.error(f"Error plotting options flow: {e}")
     
@@ -142,10 +148,10 @@ class EnhancedVisualizations:
             ax4.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            st.pyplot(fig, clear_figure=True)
-            plt.close(fig)
+            safe_pyplot_display(fig)
         except Exception as e:
             st.error(f"Error plotting Greeks dashboard: {e}")
+    
     def plot_portfolio_risk_metrics(self, returns_data, allocations):
         """Plot comprehensive portfolio risk visualization"""
         try:
@@ -188,43 +194,47 @@ class EnhancedVisualizations:
             ax4.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            st.pyplot(fig, clear_figure=True)
-            plt.close(fig)
+            safe_pyplot_display(fig)
         except Exception as e:
             st.error(f"Error plotting portfolio risk metrics: {e}")
     
-    def plot_correlation_heatmap_dynamic(self, correlation_matrix, returns_data):
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
-        
-        # Correlation heatmap
-        im1 = ax1.imshow(correlation_matrix.values, cmap='RdBu', vmin=-1, vmax=1, aspect='auto')
-        ax1.set_xticks(range(len(correlation_matrix.columns)))
-        ax1.set_yticks(range(len(correlation_matrix.index)))
-        ax1.set_xticklabels(correlation_matrix.columns, rotation=45, ha='right')
-        ax1.set_yticklabels(correlation_matrix.index)
-        ax1.set_title('Asset Correlation Matrix')
-        
-        # Add text annotations
-        for i in range(len(correlation_matrix.index)):
-            for j in range(len(correlation_matrix.columns)):
-                text = ax1.text(j, i, f'{correlation_matrix.values[i, j]:.2f}',
-                              ha="center", va="center", color="black")
-        
-        plt.colorbar(im1, ax=ax1, shrink=0.8)
-        
-        # Rolling correlation plot
-        if len(returns_data.columns) >= 2:
-            asset1, asset2 = returns_data.columns[0], returns_data.columns[1]
-            rolling_corr = returns_data[asset1].rolling(30).corr(returns_data[asset2])
+    def plot_correlation_analysis(self, correlation_matrix, returns_data):
+        """Enhanced correlation analysis with proper figure management"""
+        try:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
             
-            ax2.plot(rolling_corr.index, rolling_corr, 
-                    color=self.color_scheme['neutral'], linewidth=2)
-            ax2.set_title(f'30-Day Rolling Correlation: {asset1} vs {asset2}')
-            ax2.set_xlabel('Date')
-            ax2.set_ylabel('Correlation')
-            ax2.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
+            # Correlation heatmap
+            im1 = ax1.imshow(correlation_matrix.values, cmap='RdYlBu_r', 
+                           aspect='auto', vmin=-1, vmax=1)
+            ax1.set_xticks(range(len(correlation_matrix.columns)))
+            ax1.set_yticks(range(len(correlation_matrix.index)))
+            ax1.set_xticklabels(correlation_matrix.columns, rotation=45, ha='right')
+            ax1.set_yticklabels(correlation_matrix.index)
+            ax1.set_title('Asset Correlation Matrix')
+            
+            # Add text annotations
+            for i in range(len(correlation_matrix.index)):
+                for j in range(len(correlation_matrix.columns)):
+                    text = ax1.text(j, i, f'{correlation_matrix.values[i, j]:.2f}',
+                                  ha="center", va="center", color="black")
+            
+            plt.colorbar(im1, ax=ax1, shrink=0.8)
+            
+            # Rolling correlation plot
+            if len(returns_data.columns) >= 2:
+                asset1, asset2 = returns_data.columns[0], returns_data.columns[1]
+                rolling_corr = returns_data[asset1].rolling(30).corr(returns_data[asset2])
+                
+                ax2.plot(rolling_corr.index, rolling_corr, 
+                        color=self.color_scheme['neutral'], linewidth=2)
+                ax2.set_title(f'30-Day Rolling Correlation: {asset1} vs {asset2}')
+                ax2.set_xlabel('Date')
+                ax2.set_ylabel('Correlation')
+                ax2.grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            safe_pyplot_display(fig)
+        except Exception as e:
+            st.error(f"Error plotting correlation analysis: {e}")
 
 enhanced_viz = EnhancedVisualizations()
