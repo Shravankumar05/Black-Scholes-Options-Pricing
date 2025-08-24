@@ -491,7 +491,14 @@ def render_portfolio_risk_page():
                     auto_vol = 0.2  # Default
                     if symbol and symbol.strip():
                         try:
-                            ticker_data = yf.download(symbol.strip().upper(), period="1y", progress=False, auto_adjust=True)
+                            # Use safe yfinance download to avoid Chrome user agent issues
+                            try:
+                                from deployment_config import safe_yfinance_download
+                                ticker_data = safe_yfinance_download(symbol.strip().upper(), period="1y")
+                            except ImportError:
+                                # Fallback to regular yfinance if deployment_config not available
+                                ticker_data = yf.download(symbol.strip().upper(), period="1y", progress=False, auto_adjust=True)
+                            
                             if not ticker_data.empty and 'Close' in ticker_data.columns:
                                 close_prices = ticker_data['Close']
                                 if len(close_prices) > 1:

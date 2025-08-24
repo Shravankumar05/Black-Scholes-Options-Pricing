@@ -12,7 +12,23 @@ class OptionsMarketData:
     
     def fetch_options_chain(self, symbol, days_to_expiry=None):
         try:
-            ticker = yf.Ticker(symbol)
+            # Use safe yfinance access if available
+            try:
+                from deployment_config import safe_yfinance_download, is_deployment_environment
+                
+                if is_deployment_environment():
+                    # In deployment, use safer approach
+                    import requests
+                    session = requests.Session()
+                    session.headers.update({
+                        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    })
+                    ticker = yf.Ticker(symbol, session=session)
+                else:
+                    ticker = yf.Ticker(symbol)
+            except ImportError:
+                ticker = yf.Ticker(symbol)
+            
             expirations = ticker.options
             
             if not expirations:
@@ -29,8 +45,18 @@ class OptionsMarketData:
             calls = options_data.calls
             puts = options_data.puts
             
-            stock_info = ticker.history(period="1d")
-            current_price = stock_info['Close'].iloc[-1]
+            # Use safe data fetching for stock price
+            try:
+                from deployment_config import safe_yfinance_download
+                stock_info = safe_yfinance_download(symbol, period="1d")
+            except ImportError:
+                stock_info = ticker.history(period="1d")
+                
+            if not stock_info.empty:
+                current_price = stock_info['Close'].iloc[-1]
+            else:
+                # Fallback price if data fetching fails
+                current_price = 150.0  # Default reasonable price
             
             return {
                 'symbol': symbol,

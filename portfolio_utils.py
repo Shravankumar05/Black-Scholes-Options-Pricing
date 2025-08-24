@@ -80,27 +80,53 @@ def fetch_historical_data(symbols, period="1y"):
 
 def _fetch_stock_data(symbols, period):
     try:
+        # Import safe download function if available
+        try:
+            from deployment_config import safe_yfinance_download
+            use_safe_download = True
+        except ImportError:
+            use_safe_download = False
+        
         if len(symbols) == 1:
-            ticker = yf.Ticker(symbols[0])
-            data = ticker.history(period=period, auto_adjust=True)
+            if use_safe_download:
+                data = safe_yfinance_download(symbols[0], period=period)
+            else:
+                ticker = yf.Ticker(symbols[0])
+                data = ticker.history(period=period, auto_adjust=True)
+                
             if not data.empty and 'Close' in data.columns:
                 result = data[['Close']].dropna().rename(columns={'Close': symbols[0]})
                 return result
             else:
                 return pd.DataFrame()
         else:
-            data = yf.download(symbols, period=period, progress=False, auto_adjust=True)
-            if data.empty:
-                return pd.DataFrame()
-            
-            if isinstance(data.columns, pd.MultiIndex):
-                if 'Close' in data.columns.get_level_values(0):
-                    result = data['Close'].dropna()
-                    return result
-                else:
-                    return pd.DataFrame()
+            if use_safe_download:
+                # For multiple symbols, try to get data for each individually
+                combined_data = pd.DataFrame()
+                for symbol in symbols:
+                    try:
+                        data = safe_yfinance_download(symbol, period=period)
+                        if not data.empty and 'Close' in data.columns:
+                            if combined_data.empty:
+                                combined_data = data[['Close']].rename(columns={'Close': symbol})
+                            else:
+                                combined_data[symbol] = data['Close']
+                    except Exception:
+                        continue
+                return combined_data.dropna()
             else:
-                return data.dropna()
+                data = yf.download(symbols, period=period, progress=False, auto_adjust=True)
+                if data.empty:
+                    return pd.DataFrame()
+                
+                if isinstance(data.columns, pd.MultiIndex):
+                    if 'Close' in data.columns.get_level_values(0):
+                        result = data['Close'].dropna()
+                        return result
+                    else:
+                        return pd.DataFrame()
+                else:
+                    return data.dropna()
                 
     except Exception as e:
         return pd.DataFrame()
