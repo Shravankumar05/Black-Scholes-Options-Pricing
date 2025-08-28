@@ -1,124 +1,114 @@
-# Black-Scholes Options Analysis Dashboard
+# Advanced Portfolio Analysis & ML-Driven Backtesting Engine
 
-## 🚀 Features
+## Key Project Highlights
 
-### Individual Options Analysis
-- **Black-Scholes Pricing Model**: Real-time options pricing for calls and puts
-- **Greeks Calculation**: Delta, Gamma, Theta, Vega, and Rho analysis
-- **Implied Volatility**: Newton-Raphson method for IV calculation
-- **Interactive Heatmaps**: Price and P&L visualization across spot/volatility ranges
-- **Break-Even Analysis**: Visual break-even curves for option strategies
-- **Live Market Data**: Real-time price and volatility fetching via yfinance and Binance
+- **Interactive Dashboard**: A user-friendly interface for real-time Black-Scholes options pricing, Greek analysis, and portfolio risk management.
+- **ML-Powered Backtesting**: An advanced backtesting engine that uses regime detection and ML-enhanced models to dynamically adjust portfolio allocations.
+- **Comprehensive Risk Management**: Implements a wide range of risk metrics, including various VaR methods, CVaR, and historical stress testing.
+- **Performance Optimized**: Utilizes Numba for JIT compilation and parallel processing to accelerate complex financial calculations.
 
-### Portfolio Risk Management
-- **Multi-Asset Portfolios**: Support for stocks, cryptocurrencies, calls, and puts in single portfolio
-- **Value at Risk (VaR)**: Historical, Parametric, and Monte Carlo VaR methods
-- **Conditional VaR (CVaR)**: Expected Shortfall analysis for tail risk
-- **Monte Carlo Simulation**: JIT-optimized simulations with up to 10,000 scenarios
-- **Correlation Analysis**: Asset correlation matrices with visualization
-- **Stress Testing**: Historical scenario analysis (2008 Crisis, COVID, Dot-com)
-- **Portfolio Greeks**: Aggregated risk sensitivities across all positions
-- **Cryptocurrency Support**: Real-time crypto data via Binance API
+## 🚀 Getting Started
 
-### Advanced Technical Features
-- **Performance Optimization**: Numba JIT compilation for Monte Carlo simulations
-- **Multi-threading**: Automatic parallelization for large calculations
-- **Real-time Data**: Integration with Yahoo Finance API
-- **Database Integration**: SQLite storage for calculation history
-- **Professional Visualizations**: Publication-ready charts and heatmaps
+### Prerequisites
 
-## 📊 Risk Metrics Implemented
+- Python 3.8+
+- Pip package manager
 
-### Value at Risk (VaR)
-- **Historical VaR**: Non-parametric approach using empirical distribution
-- **Parametric VaR**: Variance-covariance method assuming normal distribution
-- **Monte Carlo VaR**: Simulation-based approach handling complex portfolios
+### Installation
 
-### Advanced Risk Measures
-- **Conditional VaR (CVaR)**: Average loss beyond VaR threshold
-- **Maximum Drawdown**: Peak-to-trough decline analysis
-- **Sharpe Ratio**: Risk-adjusted return measurement
-- **Portfolio Beta**: Systematic risk measurement
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Shravankumar05/Black-Scholes-Options-Pricing.git
+    cd Black-Scholes-Options-Pricing
+    ```
 
-### Stress Testing
-- **Historical Scenarios**: 2008 Financial Crisis, COVID-19 Crash, Dot-com Bubble
-- **Hypothetical Shocks**: Custom equity, volatility, and interest rate scenarios
-- **Correlation Breakdown**: Crisis correlation modeling
+2.  **Create a virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
 
-## 🛠 Installation
+3.  **Install the required dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/Shravankumar05/Black-Scholes-Options-Pricing.git
-cd Black-Scholes-Options-Pricing
-```
+## 📊 Project Demo
 
-2. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
+This project has two main components that can be demonstrated:
 
-3. **Run the application**
+### 1. Interactive Portfolio Analysis Dashboard
+
+The Streamlit application provides a GUI for real-time options and portfolio analysis.
+
+**To run the dashboard:**
+
 ```bash
 streamlit run bs_app.py
 ```
 
-## 💻 Usage
+This will launch a web server and open the dashboard in your browser, where you can:
 
-### Individual Options Analysis
-1. Select "Individual Black-Scholes" from the sidebar
-2. Enter stock symbol (optional) for live data
-3. Configure option parameters (strike, expiry, volatility, etc.)
-4. View real-time pricing, Greeks, and risk analysis
-5. Generate interactive heatmaps and break-even curves
+-   Price individual options using the Black-Scholes model.
+-   Analyze option Greeks and visualize P&L scenarios with heatmaps.
+-   Construct multi-asset portfolios and evaluate their risk profiles.
 
-### Portfolio Risk Analysis
-1. Select "Portfolio Risk Analysis" from the sidebar
-2. Add multiple positions (stocks, calls, puts)
-3. Configure risk parameters (confidence levels, time horizons)
-4. Run Monte Carlo simulations and stress tests
-5. Analyze correlation matrices and portfolio Greeks
+### 2. ML-Driven Performance Backtest
 
-## 🔧 Technical Architecture
+The backtesting engine evaluates the performance of the machine learning-enhanced portfolio allocation strategies.
 
-### Core Components
-- **bs_functions.py**: Black-Scholes pricing and Greeks calculations
-- **portfolio_utils.py**: Risk management and Monte Carlo functions
-- **portfolio_risk.py**: Portfolio analysis UI and logic
-- **db_utils.py**: Database operations and data persistence
+**To run the backtest:**
 
-### Performance Features
-- **JIT Compilation**: Numba-optimized Monte Carlo simulations
-- **Vectorization**: NumPy-based calculations for speed
-- **Multi-threading**: Parallel processing for large datasets
-- **Caching**: Intelligent caching for repeated calculations
-
-### Data Sources
-- **Yahoo Finance**: Real-time stock market data and historical prices
-- **Binance API**: Real-time cryptocurrency data and historical prices
-- **User Input**: Custom parameters and scenarios
-- **SQLite Database**: Calculation history and results storage
-
-## 📈 Mathematical Models
-
-### Black-Scholes Formula
-```
-Call: C = S₀N(d₁) - Ke^(-rT)N(d₂)
-Put:  P = Ke^(-rT)N(-d₂) - S₀N(-d₁)
-
-where:
-d₁ = [ln(S₀/K) + (r + σ²/2)T] / (σ√T)
-d₂ = d₁ - σ√T
+```bash
+python performance_backtest.py
 ```
 
-### Greeks Calculations
-- **Delta**: ∂V/∂S (price sensitivity)
-- **Gamma**: ∂²V/∂S² (delta sensitivity)
-- **Theta**: ∂V/∂T (time decay)
-- **Vega**: ∂V/∂σ (volatility sensitivity)
-- **Rho**: ∂V/∂r (interest rate sensitivity)
+This script will:
 
-### Risk Metrics
-- **VaR**: Percentile-based loss estimation
-- **CVaR**: E[Loss | Loss > VaR]
-- **Monte Carlo**: Correlated asset simulation using Cholesky decomposition
+-   Fetch historical market data for a predefined set of assets.
+-   Train the ML models for market regime detection and return prediction.
+-   Run a historical simulation of the portfolio's performance.
+-   Output performance metrics and generate a `performance_chart.png` visualizing the results.
+
+## ✨ Features & Technologies
+
+### Core Technologies
+
+-   **Python**: The core programming language.
+-   **Streamlit**: For building the interactive web dashboard.
+-   **Scikit-learn**: For machine learning models (Random Forest, GMM).
+-   **Pandas & NumPy**: For data manipulation and numerical computation.
+-   **SciPy**: For optimization and statistical functions.
+-   **Matplotlib & Seaborn**: For data visualization.
+-   **Numba**: For JIT compilation to accelerate numerical functions.
+
+### Feature Breakdown
+
+#### Portfolio Allocation Engine (`portfolio_allocation.py`)
+
+-   **Market Regime Detection**: Uses a Gaussian Mixture Model (GMM) to classify market conditions (e.g., Bull, Bear, High-Volatility) based on features like volatility, correlation, and momentum.
+-   **ML-Enhanced Return Prediction**: Employs a Random Forest Regressor to predict future asset returns, which informs the allocation strategy.
+-   **Dynamic Allocation Strategies**: Implements a range of allocation models that adapt to the current market regime, including:
+    -   ML-Enhanced Black-Litterman
+    -   Advanced Minimum Variance
+    -   Regime-Adaptive Volatility Targeting
+
+#### Performance Backtesting (`performance_backtest.py`)
+
+-   **Historical Simulation**: Simulates portfolio performance over a specified historical period.
+-   **Performance Metrics**: Calculates key metrics such as Annualized Return, Volatility, Sharpe Ratio, and Max Drawdown.
+-   **Visualization**: Generates charts comparing the portfolio's performance against a benchmark.
+
+#### Interactive Dashboard (`bs_app.py`)
+
+-   **Black-Scholes Model**: Provides real-time pricing for call and put options.
+-   **Greeks Analysis**: Calculates and displays Delta, Gamma, Theta, Vega, and Rho.
+-   **Portfolio Risk Management**: Offers tools for VaR, CVaR, and stress testing on user-defined portfolios.
+
+## 🔧 Project Architecture
+
+-   `bs_app.py`: The entry point for the Streamlit interactive dashboard.
+-   `performance_backtest.py`: The entry point for running the ML-driven backtest.
+-   `portfolio_allocation.py`: Contains the core logic for the advanced portfolio allocation engine, including ML models and allocation strategies.
+-   `bs_functions.py`: Implements the Black-Scholes pricing model and Greeks calculations.
+-   `ml_components.py`, `crypto_utils.py`, `db_utils.py`: Utility modules for machine learning components, cryptocurrency data, and database interactions.
